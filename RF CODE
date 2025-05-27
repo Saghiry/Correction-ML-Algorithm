@@ -13,7 +13,7 @@ import os # Import the os module
 from sklearn.ensemble import RandomForestRegressor
 
 
-# Pour la reproductibilité
+# For reproducibility
 seed_value = 42
 random.seed(seed_value)
 np.random.seed(seed_value)
@@ -90,7 +90,7 @@ X_full_scaled = scaler.transform(X_full)
 y_full_pred = model.predict(X_full_scaled)
 y_full_true = data["PO"].values
 
-# Ajouter les valeurs prédites comme colonne "PS corrigées" au tableau original
+# Add the predicted values ​​as a "corrected PS" column to the original table.
 data["PS corrigées"] = y_full_pred
 
 # Exporter le tableau avec les trois colonnes (PS, PO, PS corrigées)
