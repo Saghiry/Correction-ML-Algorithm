@@ -12,7 +12,7 @@ from sklearn.metrics import r2_score
 import random # Import the random module
 import os # Import the os module
 
-# Pour la reproductibilité
+# For reproducibility
 seed_value = 42
 random.seed(seed_value)
 np.random.seed(seed_value)
@@ -37,7 +37,7 @@ scaler = StandardScaler()
 X_train = scaler.fit_transform(X_train)
 X_test = scaler.transform(X_test)
 
-# Création et entraînement du modèle XGBoost
+# Create and train the XGBoost model
 model = xgb.XGBRegressor(n_estimators=100, learning_rate=0.1, max_depth=5, random_state=42)
 model.fit(X_train, y_train)
 
@@ -122,10 +122,10 @@ plt.tight_layout()
 plt.savefig(f"{base_name}_Performance_correction.jpg", dpi=300, bbox_inches='tight')
 plt.show()
 
-# Ajouter une nouvelle colonne "PS corrigées" au dataframe original
+# Add a new "corrected PS" column to the original dataframe
 data["PS corrigées"] = y_full_pred.flatten()
 
-# Exporter le tableau final avec les trois colonnes (PS, PO, PS corrigées)
+# Export the final table with the three columns (PS, PO, corrected PS)
 data[["PS", "PO", "PS corrigées"]].to_excel(f"{base_name}_resultats_correction.xlsx", index=False)
 print(f"Tableau avec les valeurs corrigées sauvegardé dans {base_name}_resultats_correction.xlsx")
 files.download(f"{base_name}_model_metrics.xlsx")
