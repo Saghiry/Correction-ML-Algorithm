@@ -1,0 +1,134 @@
+import numpy as np
+import pandas as pd
+import xgboost as xgb
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+import matplotlib.pyplot as plt
+from google.colab import files
+from sklearn.metrics import r2_score
+import random # Import the random module
+import os # Import the os module
+
+# Pour la reproductibilité
+seed_value = 42
+random.seed(seed_value)
+np.random.seed(seed_value)
+tf.random.set_seed(seed_value)
+os.environ['PYTHONHASHSEED'] = str(seed_value)
+
+print("Please select the Excel file containing the data...")
+uploaded = files.upload()
+file_name = list(uploaded.keys())[0]
+base_name = file_name.split('.')[0]  # Get filename without extension
+data = pd.read_excel(file_name)
+
+# Data preparation with single input
+X = data[["PS"]].values
+y = data["PO"].values
+
+# Split data for training and testing
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Scale the data
+scaler = StandardScaler()
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
+
+# Création et entraînement du modèle XGBoost
+model = xgb.XGBRegressor(n_estimators=100, learning_rate=0.1, max_depth=5, random_state=42)
+model.fit(X_train, y_train)
+
+# Make predictions on test data
+y_pred = model.predict(X_test)
+
+def calculate_metrics(y_true, y_pred):
+    y_pred = y_pred.flatten()
+    correlation_coef = np.corrcoef(y_true, y_pred)[0,1]
+    rmse = np.sqrt(np.mean((y_true - y_pred) ** 2))
+    bias = (np.mean(y_pred) - np.mean(y_true)) / np.mean(y_true) * 100
+   r2 = r2_score(y_true, y_pred)
+    me = np.mean(y_pred - y_true)
+    numerator = np.sum((y_true - y_pred) ** 2)
+    denominator = np.sum((y_true - np.mean(y_true)) ** 2)
+    nse = 1 - (numerator / denominator)
+    # Correction de la formule NRMSE avec la bonne indentation
+    nrmse = rmse / (np.max(y_true) - np.min(y_true)) * 100
+    return correlation_coef, rmse, bias, r2, me, nse, nrmse
+
+# Calculate metrics for test data
+correlation_coef, rmse, bias, r2, me, nse, nrmse = calculate_metrics(y_test, y_pred)
+metrics_df = pd.DataFrame({
+    "CC": [correlation_coef],
+    "RMSE": [rmse],
+    "BIAS": [bias],
+    "ME": [me],
+    "R²": [r2],
+    "NSE": [nse],
+    "NRMSE": [nrmse]
+})
+
+# Save metrics with dynamic filename
+metrics_df.to_excel(f"{base_name}_model_metrics.xlsx", index=False)
+
+# Plot test results
+plt.figure(figsize=(4, 3), dpi=300)
+plt.scatter(y_test, y_pred, alpha=0.7, s=15, label='Predictions vs Observations')
+plt.plot([min(y_test), max(y_test)], [min(y_test), max(y_test)], "r--", label='Reference (y=x)')
+plt.xlabel('Observed Precipitation (mm)')
+plt.ylabel('Predicted Precipitation (mm)')
+plt.title('Predictions vs Observations', fontsize=8)
+plt.legend(fontsize=6)
+plt.xticks(fontsize=6)
+plt.yticks(fontsize=6)
+plt.tight_layout()
+plt.show()
+
+# New additions for full series prediction and analysis
+# Prepare and predict full series
+X_full = data[["PS"]].values
+X_full_scaled = scaler.transform(X_full)
+y_full_pred = model.predict(X_full_scaled)
+y_full_true = data["PO"].values  # Using PO values for comparison
+
+# Calculate metrics for full series (PO vs predicted)
+correlation_coef_full, rmse_full, bias_full, r2_full, me_full, nse_full, nrmse_full = calculate_metrics(y_full_true, y_full_pred)
+metrics_full_df = pd.DataFrame({
+    "CC": [correlation_coef_full],
+    "RMSE": [rmse_full],
+    "BIAS": [bias_full],
+    "ME": [me_full],
+    "R²": [r2_full],
+    "NSE": [nse_full],
+    "NRMSE": [nrmse_full]
+})
+
+# Save full series metrics
+metrics_full_df.to_excel(f"{base_name}_Performance_correction.xlsx", index=False)
+
+# Create and save the second plot
+plt.figure(figsize=(4, 3), dpi=300)
+plt.scatter(y_full_true, y_full_pred, alpha=0.7, s=15, label='Predictions vs Observations')
+plt.plot([min(y_full_true), max(y_full_true)], [min(y_full_true), max(y_full_true)], "r--", label='Reference (y=x)')
+plt.xlabel('Observed Precipitation (mm)')
+plt.ylabel('Predicted Precipitation (mm)')
+plt.title('Predictions vs Observations (Full Series)', fontsize=8)
+plt.legend(fontsize=6)
+plt.xticks(fontsize=6)
+plt.yticks(fontsize=6)
+plt.tight_layout()
+plt.savefig(f"{base_name}_Performance_correction.jpg", dpi=300, bbox_inches='tight')
+plt.show()
+
+# Ajouter une nouvelle colonne "PS corrigées" au dataframe original
+data["PS corrigées"] = y_full_pred.flatten()
+
+# Exporter le tableau final avec les trois colonnes (PS, PO, PS corrigées)
+data[["PS", "PO", "PS corrigées"]].to_excel(f"{base_name}_resultats_correction.xlsx", index=False)
+print(f"Tableau avec les valeurs corrigées sauvegardé dans {base_name}_resultats_correction.xlsx")
+files.download(f"{base_name}_model_metrics.xlsx")
+files.download(f"{base_name}_Performance_correction.xlsx")
+files.download(f"{base_name}_Performance_correction.jpg")
+files.download(f"{base_name}_resultats_correction.xlsx")
